@@ -1,0 +1,66 @@
+kind: Beat
+apiVersion: beat.k8s.elastic.co/v1beta1
+metadata:
+  name: # enter your own
+  namespace: # enter your own
+spec:
+  type: filebeat
+  version: 7.9.1 # match the version to elastic
+  elasticsearchRef:
+    name: # enter your own
+    namespace: # enter your own
+  kibanaRef:
+    name: < enter your own >
+    namespace: < enter your own >
+  config:
+    setup.template.name: "filebeat-crowdstrike-logs"
+    setup.template.overwrite: "true"
+    setup.ilm.enabled: auto
+    setup.ilm.rollover_alias: "filebeat-crowdstrike-logs"
+    setup.ilm.pattern: "{now/d}-000001"
+    filebeat:
+      modules: 
+        - module: crowdstrike
+          falcon:
+            enabled: true
+            var.paths: ["/var/log/crowdstrike/falconhoseclient/output"]
+    logging:
+      json: true 
+  deployment:
+    podTemplate:
+      spec:
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: # specific to your environment
+                  operator: In
+                  values:
+                  - default
+        automountServiceAccountToken: true
+        containers:
+          - name: filebeat
+            volumeMounts: 
+              - name: crowdstrike-output
+                mountPath: /var/log/crowdstrike/falconhoseclient
+          - name: crowdstrike
+            image: # I pushed my image to ECR, you can use whatever is in your environment
+            envFrom:
+            - secretRef:
+                name: crowdstrike-config
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 256Mi
+            volumeMounts: 
+              - name: crowdstrike-output
+                mountPath: /var/log/crowdstrike/falconhoseclient
+        volumes:
+          - name: crowdstrike-output
+            emptyDir: {}
+        securityContext:
+          runAsUser: 0
