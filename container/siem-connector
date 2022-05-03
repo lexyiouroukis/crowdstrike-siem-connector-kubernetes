@@ -1,0 +1,1 @@
+Download your .deb file from the Crowdstrike Admin UI. It requires OAuth to get that file hence having to add it directly to the container.
